@@ -204,8 +204,6 @@ def main():
             if event.type == pg.QUIT:
                 pg.quit()
                 sys.exit()
-            if game_over and event.type == pg.KEYDOWN and event.key == pg.K_r:
-                return main()
 
         if not game_over:
             player.update(shift_pressed)
@@ -222,17 +220,10 @@ def main():
         wall.draw(canvas)
         player.draw(canvas)
 
+        # スコアのみ表示
         text_color = (30, 30, 30) if bg_img else (255, 255, 255)
         score_surf = font.render(f"Score: {score}", True, text_color)
         canvas.blit(score_surf, (20, 20))
-
-        hint_color = (50, 50, 50) if bg_img else (200, 200, 200)
-        hint = font.render("A/D または 左右キー: 移動 | Shift長押し: 加速 | R: リスタート", True, hint_color)
-        canvas.blit(hint, (20, 65))
-
-        if game_over:
-            over_surf = font.render("GAME OVER! Rキーでリスタート", True, (220, 30, 30))
-            canvas.blit(over_surf, (WIDTH // 2 - 220, HEIGHT // 2))
 
         # ---------------- 画面振動 ----------------
         offset_x = 0
