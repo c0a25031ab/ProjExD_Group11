@@ -5,7 +5,7 @@ import sys
 
 # スクリプトの保存先フォルダをカレントディレクトリに変更
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
+ 
 WIDTH = 1100
 HEIGHT = 650
 FPS = 60
@@ -35,12 +35,23 @@ def load_image_with_fallback(filenames):
 # プレイヤー（こうかとん: 3.png）
 class Player:
     def __init__(self):
-        self.w = 65
-        self.h = 65
-        self.x = WIDTH // 2 - self.w // 2
-        self.y = HEIGHT - 115
-        self.normal_speed = 7.5
-        self.boost_speed = 14.0
+        self.w: int = 65
+        self.base_h: int = 65
+        self.h: int = self.base_h
+        self.x: float = WIDTH // 2 - self.w // 2
+        self.base_y: float = HEIGHT - 115
+        self.y: float = self.base_y
+        self.normal_speed: float = 7.5
+        self.boost_speed: float = 14.0
+
+        # ↓追記部分
+        self.is_jumping: bool = False
+        self.jump_power: float = -18.0  # ジャンプ
+        self.gravity: float = 1.0       # 重力
+        self.vy: float = 0.0            # Y軸方向速度
+
+        self.is_crouching: bool = False  # しゃがみ
+        # ↑追記部分
         self.rect = pg.Rect(self.x, self.y, self.w, self.h)
         self.facing_right = True
 
@@ -71,11 +82,47 @@ class Player:
             self.facing_right = True
 
         self.x = max(0, min(self.x, WIDTH - self.w))
-        self.rect.x = self.x
+        self.x = max(0, min(self.x, WIDTH - self.w))
 
-    def draw(self, target_surf):
+        # ↓追記部分
+        # 2. しゃがみ処理 (Sキー　↓キー)
+        if (keys[pg.K_s] or keys[pg.K_DOWN]) and not self.is_jumping:
+            self.is_crouching = True
+            self.h = 35  # 高さを小さくする
+            self.y = self.base_y + (self.base_h - self.h)
+        else:
+            self.is_crouching = False
+            self.h = self.base_h
+            if not self.is_jumping:
+                self.y = self.base_y
+
+        # 3. ジャンプ (Wキー ↑キー Spaceキー)
+        if (keys[pg.K_w] or keys[pg.K_UP] or keys[pg.K_SPACE]) and not self.is_jumping and not self.is_crouching:
+            self.is_jumping = True
+            self.vy = self.jump_power
+
+        # 4. ジャンプ中（重力）
+        if self.is_jumping:
+            self.y += self.vy
+            self.vy += self.gravity
+            if self.y >= self.base_y:
+                self.y = self.base_y
+                self.is_jumping = False
+                self.vy = 0.0
+
+        # 位置と高さの変化をRectに反省
+        self.rect = pg.Rect(self.x, self.y, self.w, self.h)
+        #　↑追記部分
+
+    def draw(self, target_surf: pg.Surface) -> None:
         img = self.img_right if self.facing_right else self.img_left
-        target_surf.blit(img, self.rect)
+        # ↓追記部分 
+        if self.is_crouching:
+            scaled_img = pg.transform.scale(img, (self.w, self.h))
+            target_surf.blit(scaled_img, self.rect)
+        else:
+            target_surf.blit(img, self.rect)
+        #　↑追記部分
 
 
 # 杭打ち機の壁（上からの登場スピード強化版）
