@@ -1,13 +1,14 @@
 import os
-import pygame as pg
 import random
 import sys
+import pygame as pg
+
+# スクリプトの保存先フォルダをカレントディレクトリに変更
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 WIDTH = 1100
 HEIGHT = 650
 FPS = 60
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 pg.init()
 screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -18,11 +19,7 @@ clock = pg.time.Clock()
 def load_image_with_fallback(filenames):
     """実行環境に合わせて画像を探索"""
     for fname in filenames:
-        candidates = [
-            os.path.join(BASE_DIR, "fig", fname),
-            os.path.join(BASE_DIR, fname),
-            fname
-        ]
+        candidates = [os.path.join("fig", fname), fname]
         for path in candidates:
             if os.path.exists(path):
                 try:
@@ -32,19 +29,21 @@ def load_image_with_fallback(filenames):
     return None
 
 
-# プレイヤー（こうかとん: 3.png）
+# プレイヤー（こうかとん: 3.png / 人間: man.png）
 class Player:
-    def __init__(self):
+
+    def __init__(self, char_type="koukaton"):
         self.w = 65
         self.h = 65
         self.x = WIDTH // 2 - self.w // 2
-        self.y = HEIGHT - 115
+        self.y = HEIGHT - 140
         self.normal_speed = 7.5
         self.boost_speed = 14.0
         self.rect = pg.Rect(self.x, self.y, self.w, self.h)
         self.facing_right = True
 
-        raw_img = load_image_with_fallback(["3.png"])
+        filenames = ["man.png"] if char_type == "man" else ["3.png"]
+        raw_img = load_image_with_fallback(filenames)
         if raw_img:
             base_img = raw_img.convert_alpha()
             try:
@@ -53,11 +52,16 @@ class Player:
                 base_img = pg.transform.scale(base_img, (self.w, self.h))
         else:
             base_img = pg.Surface((self.w, self.h))
-            base_img.fill((255, 200, 0))
+            base_img.fill(
+                (200, 200, 200) if char_type == "man" else (255, 200, 0)
+            )
 
-        # 元画像(3.png)が左向きのため反転設定
-        self.img_left = base_img
-        self.img_right = pg.transform.flip(base_img, True, False)
+        if char_type == "man":
+            self.img_right = base_img
+            self.img_left = pg.transform.flip(base_img, True, False)
+        else:
+            self.img_left = base_img
+            self.img_right = pg.transform.flip(base_img, True, False)
 
     def update(self, shift_pressed):
         keys = pg.key.get_pressed()
@@ -80,6 +84,7 @@ class Player:
 
 # 杭打ち機の壁（上からの登場スピード強化版）
 class HammerWall:
+
     def __init__(self, base_speed):
         self.h = 165
         self.y = -self.h
@@ -90,18 +95,21 @@ class HammerWall:
         self.down_speed = base_speed
         self.rise_speed = 12
 
-        # ステート制御
         self.state = "warning"
-        self.warning_speed = 3.2    # 上から顔を出すスピードを素早く（0.6 → 3.2）
+        self.warning_speed = 3.2
         self.warning_target_y = 15
-        self.hold_timer = 25        # 「ごごごご…」のタメ時間はそのままキープ
+        self.hold_timer = 25
         self.ground_hold_timer = 20
-
         self.update_rects()
 
     def update_rects(self):
         self.left_rect = pg.Rect(0, self.y, self.gap_x, self.h)
-        self.right_rect = pg.Rect(self.gap_x + self.gap_w, self.y, WIDTH - (self.gap_x + self.gap_w), self.h)
+        self.right_rect = pg.Rect(
+            self.gap_x + self.gap_w,
+            self.y,
+            WIDTH - (self.gap_x + self.gap_w),
+            self.h,
+        )
 
     def update(self):
         passed = False
@@ -147,21 +155,48 @@ class HammerWall:
     def draw(self, target_surf):
         top_wall_height = max(0, int(self.y))
         if top_wall_height > 0:
-            pg.draw.rect(target_surf, (80, 85, 100), (0, 0, WIDTH, top_wall_height))
+            pg.draw.rect(
+                target_surf, (80, 85, 100), (0, 0, WIDTH, top_wall_height)
+            )
 
         if self.y + self.h > 0:
             pg.draw.rect(target_surf, (80, 85, 100), self.left_rect)
             pg.draw.rect(target_surf, (80, 85, 100), self.right_rect)
 
-            line_color = (255, 200, 0) if self.state in ["warning", "hold"] else (220, 60, 60)
-            pg.draw.rect(target_surf, line_color, (0, self.left_rect.bottom - 8, self.gap_x, 8))
-            pg.draw.rect(target_surf, line_color, (self.gap_x + self.gap_w, self.right_rect.bottom - 8, WIDTH - (self.gap_x + self.gap_w), 8))
+            line_color = (
+                (255, 200, 0)
+                if self.state in ["warning", "hold"]
+                else (220, 60, 60)
+            )
+            pg.draw.rect(
+                target_surf,
+                line_color,
+                (0, self.left_rect.bottom - 8, self.gap_x, 8),
+            )
+            pg.draw.rect(
+                target_surf,
+                line_color,
+                (
+                    self.gap_x + self.gap_w,
+                    self.right_rect.bottom - 8,
+                    WIDTH - (self.gap_x + self.gap_w),
+                    8,
+                ),
+            )
 
             if self.y > 0:
-                pg.draw.line(target_surf, (50, 55, 70), (self.gap_x, self.y), (self.gap_x + self.gap_w, self.y), 3)
+                pg.draw.line(
+                    target_surf,
+                    (50, 55, 70),
+                    (self.gap_x, self.y),
+                    (self.gap_x + self.gap_w, self.y),
+                    3,
+                )
 
     def collide(self, player_rect):
-        return self.left_rect.colliderect(player_rect) or self.right_rect.colliderect(player_rect)
+        return self.left_rect.colliderect(player_rect) or self.right_rect.colliderect(
+            player_rect
+        )
 
 
 # 背景描画
@@ -177,35 +212,76 @@ def draw_background(target_surf, bg_img):
 
 
 def main():
-    player = Player()
-    wall = HammerWall(base_speed=15.0)
     score = 0
-    game_over = False
+    state = "TITLE"
+    char_types = ["koukaton", "man"]
+    selected_char_idx = 0
+
+    player = Player(char_types[selected_char_idx])
+    wall = HammerWall(base_speed=15.0)
 
     canvas = pg.Surface((WIDTH, HEIGHT))
     big_shake_timer = 0
 
-    raw_bg = load_image_with_fallback(["pg_bg.jpg", "background.jpg", "background.png"])
-    if raw_bg:
-        try:
-            bg_img = pg.transform.smoothscale(raw_bg.convert(), (WIDTH, HEIGHT))
-        except Exception:
-            bg_img = pg.transform.scale(raw_bg.convert(), (WIDTH, HEIGHT))
-    else:
-        bg_img = None
+    raw_bg = load_image_with_fallback(
+        ["pg_bg.jpg", "background.jpg", "background.png"]
+    )
+    bg_img = (
+        pg.transform.smoothscale(raw_bg.convert(), (WIDTH, HEIGHT))
+        if raw_bg
+        else None
+    )
 
-    font = pg.font.SysFont(["meiryo", "hiraginosans", "yu gothic", "msgothic"], 36)
+    font = pg.font.SysFont(
+        ["meiryo", "hiraginosans", "yu gothic", "msgothic"], 36
+    )
+    font_large = pg.font.SysFont(
+        ["meiryo", "hiraginosans", "yu gothic", "msgothic"], 50
+    )
 
     while True:
         clock.tick(FPS)
-        shift_pressed = pg.key.get_pressed()[pg.K_LSHIFT] or pg.key.get_pressed()[pg.K_RSHIFT]
+        shift_pressed = pg.key.get_pressed()[pg.K_LSHIFT] or pg.key.get_pressed()[
+            pg.K_RSHIFT
+        ]
 
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 pg.quit()
                 sys.exit()
 
-        if not game_over:
+            if event.type == pg.KEYDOWN:
+                if state == "TITLE":
+                    # 矢印キーでキャラ切り替え
+                    if event.key in (pg.K_LEFT, pg.K_RIGHT, pg.K_a, pg.K_d):
+                        selected_char_idx = (selected_char_idx + 1) % 2
+                        player = Player(char_types[selected_char_idx])
+                    elif event.key == pg.K_SPACE:
+                        state = "GAME"
+                        player = Player(char_types[selected_char_idx])
+                        wall = HammerWall(base_speed=15.0)
+                        score = 0
+
+                elif state == "GAMEOVER" and event.key == pg.K_SPACE:
+                    state = "TITLE"
+                    player = Player(char_types[selected_char_idx])  # スタート画面用にキャラ位置を初期化
+
+        draw_background(canvas, bg_img)
+
+        # 1. スタート画面
+        if state == "TITLE":
+            t_surf = font_large.render(
+                "こうかとんの杭打ち機回避ゲーム", True, (0, 200, 200)
+            )
+            s_surf = font.render(
+                "◀ 矢印キーでキャラ選択 ▶  /  SPACE START", True, (255, 0, 0)
+            )
+            canvas.blit(t_surf, t_surf.get_rect(center=(WIDTH // 2, 200)))
+            canvas.blit(s_surf, s_surf.get_rect(center=(WIDTH // 2, 280)))
+            player.draw(canvas)
+
+        # 2. プレイ画面
+        elif state == "GAME":
             player.update(shift_pressed)
 
             if wall.update():
@@ -214,35 +290,46 @@ def main():
                 big_shake_timer = 10
 
             if wall.collide(player.rect):
-                game_over = True
+                state = "GAMEOVER"
 
-        draw_background(canvas, bg_img)
-        wall.draw(canvas)
-        player.draw(canvas)
+            wall.draw(canvas)
+            player.draw(canvas)
 
-        # スコアのみ表示
-        text_color = (30, 30, 30) if bg_img else (255, 255, 255)
-        score_surf = font.render(f"Score: {score}", True, text_color)
-        canvas.blit(score_surf, (20, 20))
+            text_color = (30, 30, 30) if bg_img else (255, 255, 255)
+            score_surf = font.render(f"Score: {score}", True, text_color)
+            canvas.blit(score_surf, (20, 20))
+
+        # 3. ゲームオーバー画面
+        elif state == "GAMEOVER":
+            go_surf = font_large.render("しんだ", True, (255, 50, 50))
+            sc_surf = font.render(f"Score: {score}", True, (255, 255, 255))
+            rt_surf = font.render(
+                "SPACEでタイトルに戻る", True, (255, 0, 0)
+            )
+
+            canvas.blit(go_surf, go_surf.get_rect(center=(WIDTH // 2, 220)))
+            canvas.blit(sc_surf, sc_surf.get_rect(center=(WIDTH // 2, 300)))
+            canvas.blit(rt_surf, rt_surf.get_rect(center=(WIDTH // 2, 370)))
 
         # ---------------- 画面振動 ----------------
-        offset_x = 0
-        offset_y = 0
-
-        if wall.state == "warning":
-            offset_x = random.randint(-2, 2)
-            offset_y = random.randint(-2, 2)
-        elif wall.state == "hold":
-            offset_x = random.randint(-10, 10)
-            offset_y = random.randint(-10, 10)
-        elif big_shake_timer > 0:
-            big_shake_timer -= 1
-            offset_x = random.randint(-8, 8)
-            offset_y = random.randint(-8, 8)
+        offset_x, offset_y = 0, 0
+        if state == "GAME":
+            if wall.state == "warning":
+                offset_x, offset_y = random.randint(-2, 2), random.randint(
+                    -2, 2
+                )
+            elif wall.state == "hold":
+                offset_x, offset_y = random.randint(-10, 10), random.randint(
+                    -10, 10
+                )
+            elif big_shake_timer > 0:
+                big_shake_timer -= 1
+                offset_x, offset_y = random.randint(-8, 8), random.randint(
+                    -8, 8
+                )
 
         screen.fill((0, 0, 0))
         screen.blit(canvas, (offset_x, offset_y))
-
         pg.display.flip()
 
 
