@@ -3,11 +3,12 @@ import pygame as pg
 import random
 import sys
 
+# スクリプトの保存先フォルダをカレントディレクトリに変更
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 WIDTH = 1100
 HEIGHT = 650
 FPS = 60
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 pg.init()
 screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -19,8 +20,7 @@ def load_image_with_fallback(filenames):
     """実行環境に合わせて画像を探索"""
     for fname in filenames:
         candidates = [
-            os.path.join(BASE_DIR, "fig", fname),
-            os.path.join(BASE_DIR, fname),
+            os.path.join("fig", fname),
             fname
         ]
         for path in candidates:
