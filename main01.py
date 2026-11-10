@@ -14,7 +14,7 @@ pg.init()
 pg.mixer.init()  # ← 【重要】サウンド機能を初期化
 
 screen = pg.display.set_mode((WIDTH, HEIGHT))
-pg.display.set_caption("こうかとんの杭打ち機回避ゲーム")
+pg.display.set_caption("逃げろ工科トン")
 clock = pg.time.Clock()
 
 # ==================== 【追加】BGM・効果音の読み込みと設定 ====================
