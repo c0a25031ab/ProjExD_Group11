@@ -6,30 +6,37 @@ import pygame as pg
 # スクリプトの保存先フォルダをカレントディレクトリに変更
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-# スクリプトの保存先フォルダをカレントディレクトリに変更
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
 WIDTH = 1100
 HEIGHT = 650
 FPS = 60
 
 pg.init()
+pg.mixer.init()  # ← 【重要】サウンド機能を初期化
+
 screen = pg.display.set_mode((WIDTH, HEIGHT))
-pg.display.set_caption("こうかとんの杭打ち機回避ゲーム")
+pg.display.set_caption("逃げろ工科トン")
 clock = pg.time.Clock()
+
+# ==================== 【追加】BGM・効果音の読み込みと設定 ====================
+pg.mixer.music.load("sound/bgm.mp3")
+pg.mixer.music.play(-1)  # BGMループ再生
+pg.mixer.music.set_volume(0.3)
+
+impact_se = pg.mixer.Sound("sound/impact.mp3")
+impact_se.set_volume(0.7)
+
+score_se = pg.mixer.Sound("sound/score.mp3")
+score_se.set_volume(0.4)
+
+dash_se = pg.mixer.Sound("sound/dash.mp3")
+dash_se.set_volume(1.0)
+# ===========================================================================
 
 
 def load_image_with_fallback(filenames):
     """実行環境に合わせて画像を探索"""
     for fname in filenames:
-<<<<<<< HEAD
-        candidates = [
-            os.path.join("fig", fname),
-            fname
-        ]
-=======
         candidates = [os.path.join("fig", fname), fname]
->>>>>>> C0A25043/GameoverStartScreen
         for path in candidates:
             if os.path.exists(path):
                 try:
@@ -229,6 +236,7 @@ def main():
 
     player = Player(char_types[selected_char_idx])
     wall = HammerWall(base_speed=15.0)
+    prev_state = wall.state  # 音のタイミング検知用
 
     canvas = pg.Surface((WIDTH, HEIGHT))
     big_shake_timer = 0
@@ -261,6 +269,10 @@ def main():
                 sys.exit()
 
             if event.type == pg.KEYDOWN:
+                # 【追加】ダッシュ音（Shiftキーを押した瞬間）
+                if event.key == pg.K_LSHIFT or event.key == pg.K_RSHIFT:
+                    dash_se.play()
+
                 if state == "TITLE":
                     # 矢印キーでキャラ切り替え
                     if event.key in (pg.K_LEFT, pg.K_RIGHT, pg.K_a, pg.K_d):
@@ -271,10 +283,12 @@ def main():
                         player = Player(char_types[selected_char_idx])
                         wall = HammerWall(base_speed=15.0)
                         score = 0
+                        pg.mixer.music.play(-1)  # ゲーム開始時にもBGMを再生
 
                 elif state == "GAMEOVER" and event.key == pg.K_SPACE:
                     state = "TITLE"
-                    player = Player(char_types[selected_char_idx])  # スタート画面用にキャラ位置を初期化
+                    player = Player(char_types[selected_char_idx])
+                    pg.mixer.music.play(-1)  # タイトルに戻ったときもBGM再生
 
         draw_background(canvas, bg_img)
 
@@ -298,9 +312,17 @@ def main():
                 score += 1
                 wall.base_down_speed = 15.0 + score * 0.5
                 big_shake_timer = 10
+                score_se.play()  # 【追加】スコアアップ音
+
+            # 【追加】壁が落下し始めた瞬間のインパクト音
+            if wall.state == "falling" and prev_state != "falling":
+                impact_se.play()
+
+            prev_state = wall.state
 
             if wall.collide(player.rect):
                 state = "GAMEOVER"
+                pg.mixer.music.stop()  # ゲームオーバー時にBGM停止
 
             wall.draw(canvas)
             player.draw(canvas)
