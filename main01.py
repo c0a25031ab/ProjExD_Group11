@@ -28,31 +28,39 @@ def load_image_with_fallback(filenames):
     return None
 
 # HP管理クラス（追加：審査用、HP/無敵時間/描画をまとめる）
+
 class HpManager:
-    def __init__(self, max_hp, damage, invincible_frame):
+    
+    def __init__(self, max_hp:int, damage:int, invincible_frame:int) -> None:
+        """HP管理の初期化"""    
         self.max_hp = max_hp
         self.hp = max_hp
         self.damage = damage
         self.invincible_frame = invincible_frame
         self.invincible_timer = 0
+        self.hit_flash_timer = 0
 
-    def update(self):
-        """無敵タイマー更新"""
+    def update(self) -> None:
+        """無敵時間の更新処理"""   
         if self.invincible_timer > 0:
             self.invincible_timer -= 1
-
-    def take_damage(self):
-        """ダメージ処理、無敵時間発動"""
+        if self.hit_flash_timer > 0:
+            self.hit_flash_timer -=1                                                                                                             
+    def take_damage(self) -> None:
+        """ダメージを受ける処理"""   
         if self.invincible_timer <= 0:
             self.hp -= self.damage
             self.invincible_timer = self.invincible_frame
+            self.hit_flash_timer = 12  
             if self.hp < 0:
                 self.hp = 0
 
-    def is_dead(self):
+    def is_dead(self) -> int:
+        """死亡判定を返す"""   
         return self.hp <= 0
-
-    def draw(self, target_surf, font, text_color):
+    
+    def draw(self, target_surf: pg.Surface, font:pg.font, text_color:tuple) -> None:
+        # 描画処理
         """HPバー描画"""
         bar_x = 20
         bar_y = 70
@@ -70,6 +78,7 @@ class HpManager:
         pg.draw.rect(target_surf, (255,255,255), (bar_x, bar_y, bar_w, bar_h), 2)
         hp_text = font.render(f"HP: {self.hp}/{self.max_hp}", True, text_color)
         target_surf.blit(hp_text, (bar_x + bar_w + 10, bar_y))
+
 
 # プレイヤー（こうかとん: 3.png）
 class Player:
@@ -127,9 +136,11 @@ class HammerWall:
         self.hold_timer = 25
         self.ground_hold_timer = 20
         self.update_rects()
+
     def update_rects(self):
         self.left_rect = pg.Rect(0, self.y, self.gap_x, self.h)
         self.right_rect = pg.Rect(self.gap_x + self.gap_w, self.y, WIDTH - (self.gap_x + self.gap_w), self.h)
+
     def update(self):
         passed = False
         if self.state == "warning":
@@ -163,6 +174,7 @@ class HammerWall:
                 self.gap_x = random.randint(80, WIDTH - 80 - self.gap_w)
         self.update_rects()
         return passed
+    
     def draw(self, target_surf):
         top_wall_height = max(0, int(self.y))
         if top_wall_height > 0:
@@ -175,6 +187,7 @@ class HammerWall:
             pg.draw.rect(target_surf, line_color, (self.gap_x + self.gap_w, self.right_rect.bottom - 8, WIDTH - (self.gap_x + self.gap_w), 8))
             if self.y > 0:
                 pg.draw.line(target_surf, (50, 55, 70), (self.gap_x, self.y), (self.gap_x + self.gap_w, self.y), 3)
+
     def collide(self, player_rect):
         return self.left_rect.colliderect(player_rect) or self.right_rect.colliderect(player_rect)
 
@@ -227,6 +240,11 @@ def main():
             # 衝突判定
             if wall.collide(player.rect):
                 hp_manager.take_damage()
+            # 受击時、隙間へ強制移動、壁に挟まらないようにする
+                safe_center = wall.gap_x + wall.gap_w / 2
+                player.x = safe_center - player.w / 2
+                player.x = max(0, min(player.x, WIDTH - player.w))
+                player.rect.x = player.x
                 if hp_manager.is_dead():
                     game_over = True
         draw_background(canvas, bg_img)
@@ -241,6 +259,12 @@ def main():
         if game_over:
             over_surf = font.render("GAME OVER! Rキーでリスタート", True, (255, 40, 40))
             canvas.blit(over_surf, (WIDTH//2 - 260, HEIGHT//2))
+        # 被弾時の赤フラッシュエフェクト
+        if hp_manager.hit_flash_timer > 0:
+            overlay = pg.Surface((WIDTH, HEIGHT))
+            overlay.fill((255,0,0))
+            overlay.set_alpha(60)
+            canvas.blit(overlay,(0,0))
         # ---------------- 画面振動 ----------------
         offset_x = 0
         offset_y = 0
